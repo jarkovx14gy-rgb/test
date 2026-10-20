@@ -1,11 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Neonowy Kod — gra logiczna</title>
+<style>
+:root{--bg:#0b1020;--panel:#141c32;--line:#2a385b;--cyan:#58f5e8;--pink:#ff5cba;--text:#edf3ff;--muted:#9aa9ca}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,Segoe UI,sans-serif;color:var(--text);background:radial-gradient(circle at 20% 10%,#1b2a54 0,transparent 35%),radial-gradient(circle at 90% 80%,#301844 0,transparent 30%),var(--bg);display:grid;place-items:center;padding:20px}
+.game{width:min(760px,100%);background:#0e1629eF;border:1px solid var(--line);border-radius:24px;padding:clamp(18px,4vw,34px);box-shadow:0 25px 80px #0007}
+header{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-weight:900;letter-spacing:2px;color:var(--cyan);font-size:14px}
+h1{font-size:clamp(28px,5vw,42px);margin:10px 0 6px}
+p{color:var(--muted);line-height:1.55}
+.stats{display:flex;gap:10px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 13px;text-align:center;min-width:88px}
+.stat small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.stat strong{font-size:20px}
+.progress{height:7px;background:#202b46;border-radius:20px;overflow:hidden;margin:22px 0}
+#bar{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--pink));transition:width .3s}
+.panel{background:linear-gradient(145deg,#17213a,#11192d);border:1px solid var(--line);border-radius:18px;padding:22px}
+.tag{color:var(--pink);font-weight:800;text-transform:uppercase;font-size:12px;letter-spacing:1.5px}
+.question{font-size:clamp(20px,4vw,28px);font-weight:750;margin:10px 0 8px}
+.hint{font-size:14px;margin-top:0}
+.options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:20px}
+button{font:inherit;cursor:pointer;border-radius:12px;border:1px solid var(--line);color:var(--text);background:#202b46;padding:14px 16px;transition:transform .15s,border-color .15s,background .15s}
+button:hover:not(:disabled){transform:translateY(-2px);border-color:var(--cyan)}
+button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+.answer{font-weight:750;font-size:18px}
+button.correct{background:#123e3c;border-color:var(--cyan)}
+button.wrong{background:#481f3b;border-color:var(--pink)}
+button:disabled{cursor:default}
+#feedback{min-height:28px;margin:16px 0 0;font-weight:700}
+.actions{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-top:20px}
+.secondary{background:transparent}
+.primary{background:var(--cyan);color:#07131e;border-color:var(--cyan);font-weight:900}
+#next{display:none}
+footer{text-align:center;color:#7181a6;font-size:12px;margin-top:20px}
+@media(max-width:440px){.options{grid-template-columns:1fr}.stats{width:100%}.stat{flex:1}}
+</style>
 </head>
 <body>
-    
+<main class="game">
+<header>
+  <div class="logo">◆ NEON LAB / 01</div>
+  <div class="stats">
+    <div class="stat"><small>Punkty</small><strong id="score">0</strong></div>
+    <div class="stat"><small>Poziom</small><strong id="level">1/8</strong></div>
+  </div>
+</header>
+<h1>Neonowy Kod</h1>
+<p>Rozszyfruj wzory, znajdź logiczne zależności i zdobądź jak najwięcej punktów. Każda dobra odpowiedź to <b>100 pkt</b>.</p>
+<div class="progress"><div id="bar"></div></div>
+<section class="panel" id="play">
+  <div class="tag" id="tag">ZAGADKA 01</div>
+  <div class="question" id="question">Ile to 2, 4, 8, 16, ...?</div>
+  <p class="hint" id="hint">Przyjrzyj się temu, jak zmieniają się liczby.</p>
+  <div class="options" id="options"></div>
+  <div id="feedback" aria-live="polite"></div>
+  <div class="actions">
+    <button class="secondary" id="restart">↻ Zacznij od nowa</button>
+    <button class="primary" id="next">Następna zagadka →</button>
+  </div>
+</section>
+<footer>GRA DZIAŁA LOKALNIE • HTML + CSS + JAVASCRIPT</footer>
+</main>
+<script>
+const puzzles = [
+ {q:"2, 4, 8, 16, ...",h:"Każda kolejna liczba powstaje w ten sam sposób.",a:["18","24","32","30"],c:2,e:"Każdą liczbę mnożymy przez 2."},
+ {q:"Która liczba nie pasuje?",h:"Sprawdź, które liczby są parzyste.",a:["12","18","21","24"],c:2,e:"21 jest nieparzyste, pozostałe liczby są parzyste."},
+ {q:"3 + 3 × 3 = ?",h:"Pamiętaj o kolejności wykonywania działań.",a:["18","12","15","9"],c:1,e:"Najpierw mnożenie: 3 + 9 = 12."},
+ {q:"A = 1, B = 2, C = 3. Ile wynosi CAB?",h:"Zamień litery na liczby i dodaj je.",a:["5","6","7","8"],c:1,e:"C + A + B = 3 + 1 + 2 = 6."},
+ {q:"1, 1, 2, 3, 5, 8, ...",h:"Każda liczba to suma dwóch poprzednich.",a:["11","12","13","15"],c:2,e:"5 + 8 = 13."},
+ {q:"Masz 3 pudełka po 4 kulki. Ile kulek razem?",h:"W każdym pudełku jest tyle samo kulek.",a:["7","12","16","14"],c:1,e:"3 × 4 = 12 kulek."},
+ {q:"Jeśli dziś jest wtorek, jaki dzień będzie za 10 dni?",h:"Po niedzieli tydzień zaczyna się od nowa.",a:["Czwartek","Piątek","Sobota","Niedziela"],c:1,e:"7 dni później nadal jest wtorek, a 3 kolejne dni to piątek."},
+ {q:"Który symbol uzupełnia wzór: ▲ ● ▲ ● ▲ ...?",h:"Symbole występują na zmianę.",a:["▲","■","●","◆"],c:2,e:"Wzór naprzemiennie używa trójkąta i koła."}
+];
+let index=0, score=0, locked=false;
+const $=id=>document.getElementById(id);
+function render(){
+ locked=false;
+ const p=puzzles[index];
+ $("level").textContent=`${index+1}/${puzzles.length}`;
+ $("tag").textContent=`ZAGADKA ${String(index+1).padStart(2,"0")}`;
+ $("question").textContent=p.q;$("hint").textContent=p.h;
+ $("feedback").textContent="";$("next").style.display="none";
+ $("bar").style.width=`${index/puzzles.length*100}%`;
+ const opts=$("options");opts.innerHTML="";
+ p.a.forEach((answer,i)=>{
+   const b=document.createElement("button");b.className="answer";b.textContent=answer;
+   b.addEventListener("click",()=>choose(i,b));opts.appendChild(b);
+ });
+}
+function choose(i,button){
+ if(locked)return;locked=true;
+ const p=puzzles[index];const buttons=[...$("options").children];
+ buttons.forEach((b,j)=>{b.disabled=true;if(j===p.c)b.classList.add("correct")});
+ if(i===p.c){score+=100;$("feedback").textContent="✓ Dobra odpowiedź! +100 pkt";$("feedback").style.color="var(--cyan)"}
+ else{$("feedback").textContent="✕ Nie tym razem. "+p.e;$("feedback").style.color="var(--pink)";button.classList.add("wrong")}
+ $("score").textContent=score;$("bar").style.width=`${(index+1)/puzzles.length*100}%`;
+ $("next").style.display="inline-block";
+ if(index===puzzles.length-1)$("next").textContent="Zobacz wynik →";
+}
+$("next").addEventListener("click",()=>{
+ if(index<puzzles.length-1){index++;render()}
+ else{
+  $("play").innerHTML=`<div class="tag">KONIEC GRY</div><div class="question">Udało się, łamaczu kodów!</div><p>Twój wynik:</p><h1 style="color:var(--cyan)">${score} / ${puzzles.length*100} pkt</h1><p>${score===puzzles.length*100?"Perfekcyjnie! Masz świetne oko do wzorów.":score>=500?"Świetna robota! Spróbuj zdobyć jeszcze więcej punktów.":"Dobry początek! Spróbuj ponownie i popraw wynik."}</p><div class="actions"><button class="primary" id="again">Zagraj ponownie ↻</button></div>`;
+  $("bar").style.width="100%";$("again").addEventListener("click",reset);
+ }
+});
+function reset(){index=0;score=0;$("score").textContent="0";$("play").innerHTML=`<div class="tag" id="tag"></div><div class="question" id="question"></div><p class="hint" id="hint"></p><div class="options" id="options"></div><div id="feedback" aria-live="polite"></div><div class="actions"><button class="secondary" id="restart">↻ Zacznij od nowa</button><button class="primary" id="next">Następna zagadka →</button></div>`;wire();render()}
+function wire(){$("restart").addEventListener("click",reset);$("next").addEventListener("click",()=>{
+ if(!locked)return;
+ if(index<puzzles.length-1){index++;render()}
+ else {const finalScore=score;$("play").innerHTML=`<div class="tag">KONIEC GRY</div><div class="question">Udało się, łamaczu kodów!</div><p>Twój wynik:</p><h1 style="color:var(--cyan)">${finalScore} / 800 pkt</h1><p>Spróbuj ponownie, aby pobić swój rekord.</p><button class="primary" id="again">Zagraj ponownie ↻</button>`;$("bar").style.width="100%";$("again").addEventListener("click",reset)}
+})}
+wire();render();
+</script>
 </body>
 </html>
